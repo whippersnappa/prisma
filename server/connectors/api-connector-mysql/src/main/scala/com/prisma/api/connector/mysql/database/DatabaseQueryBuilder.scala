@@ -2,7 +2,7 @@ package com.prisma.api.connector.mysql.database
 
 import com.prisma.api.connector.Types.DataItemFilterCollection
 import com.prisma.api.connector._
-import com.prisma.api.connector.mysql.database.DatabaseMutationBuilder.idFromWhereEquals
+import com.prisma.api.connector.mysql.database.SlickDatabaseMutationBuilder.idFromWhereEquals
 import com.prisma.shared.models.{Field, Model, Project}
 import slick.dbio.DBIOAction
 import slick.dbio.Effect.Read
@@ -157,7 +157,7 @@ object DatabaseQueryBuilder {
 
     sql"""select EXISTS (
             select `id`from `#${project.id}`.`#${path.lastModel.name}`
-            where""" ++ nodeSelector(path.lastEdge_!) ++ sql""" `id` IN""" ++ DatabaseMutationBuilder.pathQueryThatUsesWholePath(project.id, path) ++ sql")"
+            where""" ++ nodeSelector(path.lastEdge_!) ++ sql""" `id` IN""" ++ SlickDatabaseMutationBuilder.pathQueryThatUsesWholePath(project.id, path) ++ sql")"
   }
 
   def existsByModelAndId(projectId: String, modelName: String, id: String) = {
@@ -181,7 +181,7 @@ object DatabaseQueryBuilder {
   }
 
   def existsByPath(projectId: String, path: Path) = {
-    sql"select exists" ++ DatabaseMutationBuilder.pathQueryForLastChild(projectId, path)
+    sql"select exists" ++ SlickDatabaseMutationBuilder.pathQueryForLastChild(projectId, path)
   }
 
   def selectFromScalarList(projectId: String, modelName: String, fieldName: String, nodeIds: Vector[String]): SQLActionBuilder = {

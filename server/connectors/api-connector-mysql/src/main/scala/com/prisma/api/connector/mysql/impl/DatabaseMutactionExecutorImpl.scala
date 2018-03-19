@@ -2,6 +2,7 @@ package com.prisma.api.connector.mysql.impl
 
 import com.prisma.api.connector.mysql.DatabaseMutactionInterpreter
 import com.prisma.api.connector._
+import com.prisma.api.connector.mysql.database.ScalikeDatabaseMutationBuilder
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -12,9 +13,20 @@ case class DatabaseMutactionExecutorImpl(
     extends DatabaseMutactionExecutor {
 
   override def execute(mutactions: Vector[DatabaseMutaction]): Future[Unit] = {
-    val interpreters        = mutactions.map(interpreterFor)
-    val combinedErrorMapper = interpreters.map(_.errorMapper).reduceLeft(_ orElse _)
-    val singleAction        = DBIO.seq(interpreters.map(_.action): _*).transactionally
+    val slickMutactions = mutactions.collect { case x: SlickMutaction => x }
+    val scalikeMutactions = mutactions.collect { case x: ScalikeMutaction => x }
+
+    for {
+      _ <- executeScalikeMutactions(scalikeMutactions)
+      _ <- executeSlickMutactions(slickMutactions)
+    } yield ()
+
+  }
+
+  def executeSlickMutactions(slickMutactions: Vector[SlickMutaction]): Future[Unit] = {
+    val slickInterpreters   = slickMutactions.map(interpreterFor)
+    val combinedErrorMapper = slickInterpreters.map(_.errorMapper).reduceLeft(_ orElse _)
+    val singleAction        = DBIO.seq(slickInterpreters.map(_.action): _*).transactionally
     clientDb
       .run(singleAction)
       .recover {
@@ -25,7 +37,17 @@ case class DatabaseMutactionExecutorImpl(
       .map(_ => ())
   }
 
-  def interpreterFor(mutaction: DatabaseMutaction): DatabaseMutactionInterpreter = mutaction match {
+  def executeScalikeMutactions(scalikeMutactions: Vector[ScalikeMutaction]): Future[Unit] = {
+   val item: D
+
+   ScalikeDatabaseMutationBuilder.createDataItem()
+
+
+
+
+  }
+
+  def interpreterFor(mutaction: SlickMutaction): DatabaseMutactionInterpreter = mutaction match {
     case m: AddDataItemToManyRelationByPath             => AddDataItemToManyRelationByPathInterpreter(m)
     case m: CascadingDeleteRelationMutactions           => CascadingDeleteRelationMutactionsInterpreter(m)
     case m: CreateDataItem                              => CreateDataItemInterpreter(m)

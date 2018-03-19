@@ -4,13 +4,13 @@ import java.sql.{SQLException, SQLIntegrityConstraintViolationException}
 
 import com.prisma.api.connector._
 import com.prisma.api.connector.mysql.DatabaseMutactionInterpreter
-import com.prisma.api.connector.mysql.database.DatabaseMutationBuilder.{
+import com.prisma.api.connector.mysql.database.SlickDatabaseMutationBuilder.{
   cascadingDeleteChildActions,
   oldParentFailureTriggerByField,
   oldParentFailureTriggerByFieldAndFilter
 }
 import GetFieldFromSQLUniqueException.getFieldOption
-import com.prisma.api.connector.mysql.database.{DatabaseMutationBuilder, ProjectRelayId, ProjectRelayIdTable}
+import com.prisma.api.connector.mysql.database.{SlickDatabaseMutationBuilder, ProjectRelayId, ProjectRelayIdTable}
 import com.prisma.api.schema.APIErrors
 import com.prisma.api.schema.APIErrors.RequiredRelationWouldBeViolated
 import com.prisma.shared.models.{Field, Relation}
@@ -21,7 +21,7 @@ import slick.lifted.TableQuery
 
 case class AddDataItemToManyRelationByPathInterpreter(mutaction: AddDataItemToManyRelationByPath) extends DatabaseMutactionInterpreter {
 
-  override val action = DatabaseMutationBuilder.createRelationRowByPath(mutaction.project.id, mutaction.path)
+  override val action = SlickDatabaseMutationBuilder.createRelationRowByPath(mutaction.project.id, mutaction.path)
 }
 
 case class CascadingDeleteRelationMutactionsInterpreter(mutaction: CascadingDeleteRelationMutactions) extends DatabaseMutactionInterpreter {
@@ -76,7 +76,7 @@ case class CreateDataItemInterpreter(mutaction: CreateDataItem) extends Database
   override val action = {
     val relayIds = TableQuery(new ProjectRelayIdTable(_, project.id))
     DBIO.seq(
-      DatabaseMutationBuilder.createDataItem(project.id, model.name, args.generateNonListCreateArgs(model, id)),
+      SlickDatabaseMutationBuilder.createDataItem(project.id, model.name, args.generateNonListCreateArgs(model, id)),
       relayIds += ProjectRelayId(id = id, model.stableIdentifier)
     )
   }
@@ -91,15 +91,15 @@ case class CreateDataItemInterpreter(mutaction: CreateDataItem) extends Database
 
 case class DeleteDataItemInterpreter(mutaction: DeleteDataItem) extends DatabaseMutactionInterpreter {
   override val action = DBIO.seq(
-    DatabaseMutationBuilder.deleteRelayRow(mutaction.project.id, mutaction.path),
-    DatabaseMutationBuilder.deleteDataItem(mutaction.project.id, mutaction.path)
+    SlickDatabaseMutationBuilder.deleteRelayRow(mutaction.project.id, mutaction.path),
+    SlickDatabaseMutationBuilder.deleteDataItem(mutaction.project.id, mutaction.path)
   )
 }
 
 case class DeleteDataItemNestedInterpreter(mutaction: DeleteDataItemNested) extends DatabaseMutactionInterpreter {
   override val action = DBIO.seq(
-    DatabaseMutationBuilder.deleteRelayRow(mutaction.project.id, mutaction.path),
-    DatabaseMutationBuilder.deleteDataItem(mutaction.project.id, mutaction.path)
+    SlickDatabaseMutationBuilder.deleteRelayRow(mutaction.project.id, mutaction.path),
+    SlickDatabaseMutationBuilder.deleteDataItem(mutaction.project.id, mutaction.path)
   )
 }
 
@@ -109,8 +109,8 @@ case class DeleteDataItemsInterpreter(mutaction: DeleteDataItems) extends Databa
   val whereFilter = mutaction.whereFilter
 
   override val action = DBIOAction.seq(
-    DatabaseMutationBuilder.deleteRelayIds(project, model, whereFilter),
-    DatabaseMutationBuilder.deleteDataItems(project, model, whereFilter)
+    SlickDatabaseMutationBuilder.deleteRelayIds(project, model, whereFilter),
+    SlickDatabaseMutationBuilder.deleteDataItems(project, model, whereFilter)
   )
 }
 
@@ -175,19 +175,19 @@ case class DeleteRelationCheckInterpreter(mutaction: DeleteRelationCheck) extend
 }
 
 object DisableForeignKeyConstraintChecksInterpreter extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.disableForeignKeyConstraintChecks
+  override val action = SlickDatabaseMutationBuilder.disableForeignKeyConstraintChecks
 }
 
 object EnableForeignKeyConstraintChecksInterpreter extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.enableForeignKeyConstraintChecks
+  override val action = SlickDatabaseMutationBuilder.enableForeignKeyConstraintChecks
 }
 
 case class SetScalarListInterpreter(mutaction: SetScalarList) extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.setScalarList(mutaction.project.id, mutaction.path, mutaction.field.name, mutaction.values)
+  override val action = SlickDatabaseMutationBuilder.setScalarList(mutaction.project.id, mutaction.path, mutaction.field.name, mutaction.values)
 }
 
 case class PushToScalarListInterpreter(mutaction: PushToScalarList) extends DatabaseMutactionInterpreter {
-  override def action = DatabaseMutationBuilder.pushScalarList(
+  override def action = SlickDatabaseMutationBuilder.pushScalarList(
     projectId = mutaction.project.id,
     modelName = mutaction.path.lastModel.name,
     fieldName = mutaction.field.name,
@@ -197,11 +197,11 @@ case class PushToScalarListInterpreter(mutaction: PushToScalarList) extends Data
 }
 
 case class SetScalarListToEmptyInterpreter(mutaction: SetScalarListToEmpty) extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.setScalarListToEmpty(mutaction.project.id, mutaction.path, mutaction.field.name)
+  override val action = SlickDatabaseMutationBuilder.setScalarListToEmpty(mutaction.project.id, mutaction.path, mutaction.field.name)
 }
 
 case class TruncateTableInterpreter(mutaction: TruncateTable) extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.truncateTable(mutaction.projectId, mutaction.tableName)
+  override val action = SlickDatabaseMutationBuilder.truncateTable(mutaction.projectId, mutaction.tableName)
 }
 
 case class UpdateDataItemInterpreter(mutaction: UpdateDataItem) extends DatabaseMutactionInterpreter {
@@ -210,7 +210,7 @@ case class UpdateDataItemInterpreter(mutaction: UpdateDataItem) extends Database
   val id      = mutaction.id
   val args    = mutaction.args
 
-  override val action = DatabaseMutationBuilder.updateDataItemByUnique(project.id, NodeSelector.forId(model, id), args)
+  override val action = SlickDatabaseMutationBuilder.updateDataItemByUnique(project.id, NodeSelector.forId(model, id), args)
 
   override val errorMapper = {
     // https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_dup_entry
@@ -228,19 +228,19 @@ case class UpdateDataItemInterpreter(mutaction: UpdateDataItem) extends Database
 case class UpdateDataItemByUniqueFieldIfInRelationWithInterpreter(mutaction: UpdateDataItemByUniqueFieldIfInRelationWith) extends DatabaseMutactionInterpreter {
   override val action = {
     val scalarArgs = mutaction.args.nonListScalarArguments(mutaction.path.lastModel)
-    DatabaseMutationBuilder.updateDataItemByPath(mutaction.project.id, mutaction.path, scalarArgs)
+    SlickDatabaseMutationBuilder.updateDataItemByPath(mutaction.project.id, mutaction.path, scalarArgs)
   }
 }
 
 case class UpdateDataItemIfInRelationWithInterpreter(mutaction: UpdateDataItemIfInRelationWith) extends DatabaseMutactionInterpreter {
   override val action = {
     val scalarArgs = mutaction.args.nonListScalarArguments(mutaction.path.lastModel)
-    DatabaseMutationBuilder.updateDataItemByPath(mutaction.project.id, mutaction.path, scalarArgs)
+    SlickDatabaseMutationBuilder.updateDataItemByPath(mutaction.project.id, mutaction.path, scalarArgs)
   }
 }
 
 case class UpdateDataItemsInterpreter(mutaction: UpdateDataItems) extends DatabaseMutactionInterpreter {
-  override val action = DatabaseMutationBuilder.updateDataItems(mutaction.project.id, mutaction.model, mutaction.updateArgs, mutaction.where)
+  override val action = SlickDatabaseMutationBuilder.updateDataItems(mutaction.project.id, mutaction.model, mutaction.updateArgs, mutaction.where)
 }
 
 case class UpsertDataItemInterpreter(mutaction: UpsertDataItem) extends DatabaseMutactionInterpreter {
@@ -252,9 +252,11 @@ case class UpsertDataItemInterpreter(mutaction: UpsertDataItem) extends Database
   val updateArgs = mutaction.allArgs.updateArgumentsAsCoolArgs.generateNonListUpdateArgs(model)
 
   override val action = {
-    val createActions = DatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, path.updatedRoot(createArgs), allArgs.createArgumentsAsCoolArgs)
-    val updateActions = DatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, path.updatedRoot(updateArgs), allArgs.updateArgumentsAsCoolArgs)
-    DatabaseMutationBuilder.upsert(project.id, path, mutaction.createWhere, createArgs, updateArgs, createActions, updateActions)
+    val createActions =
+      SlickDatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, path.updatedRoot(createArgs), allArgs.createArgumentsAsCoolArgs)
+    val updateActions =
+      SlickDatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, path.updatedRoot(updateArgs), allArgs.updateArgumentsAsCoolArgs)
+    SlickDatabaseMutationBuilder.upsert(project.id, path, mutaction.createWhere, createArgs, updateArgs, createActions, updateActions)
   }
 
   override val errorMapper = {
@@ -280,11 +282,11 @@ case class UpsertDataItemIfInRelationWithInterpreter(mutaction: UpsertDataItemIf
   val actualCreateArgs    = CoolArgs(createArgsWithId.raw).generateNonListCreateArgs(model, createWhere.fieldValueAsString)
   val actualUpdateArgs    = mutaction.updateArgs.nonListScalarArguments(model)
 
-  val scalarListsCreate = DatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, pathForCreateBranch, createArgsWithId)
-  val scalarListsUpdate = DatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, pathForUpdateBranch, mutaction.updateArgs)
+  val scalarListsCreate = SlickDatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, pathForCreateBranch, createArgsWithId)
+  val scalarListsUpdate = SlickDatabaseMutationBuilder.getDbActionsForUpsertScalarLists(project.id, pathForUpdateBranch, mutaction.updateArgs)
   val createCheck       = NestedCreateRelationInterpreter(NestedCreateRelation(project, pathForCreateBranch, false))
 
-  override val action = DatabaseMutationBuilder.upsertIfInRelationWith(
+  override val action = SlickDatabaseMutationBuilder.upsertIfInRelationWith(
     project = project,
     path = extendedPath,
     createWhere = createWhere,
@@ -316,7 +318,7 @@ case class VerifyConnectionInterpreter(mutaction: VerifyConnection) extends Data
   val project = mutaction.project
   val path    = mutaction.path
 
-  override val action = DatabaseMutationBuilder.connectionFailureTrigger(project, path)
+  override val action = SlickDatabaseMutationBuilder.connectionFailureTrigger(project, path)
 
   override val errorMapper = {
     case e: SQLException if e.getErrorCode == 1242 && causedByThisMutaction(e.getCause.toString) => throw APIErrors.NodesNotConnectedError(path)
@@ -336,7 +338,7 @@ case class VerifyWhereInterpreter(mutaction: VerifyWhere) extends DatabaseMutact
   val project = mutaction.project
   val where   = mutaction.where
 
-  override val action = DatabaseMutationBuilder.whereFailureTrigger(project, where)
+  override val action = SlickDatabaseMutationBuilder.whereFailureTrigger(project, where)
 
   override val errorMapper = {
     case e: SQLException if e.getErrorCode == 1242 && causedByThisMutaction(e.getCause.toString) => throw APIErrors.NodeNotFoundForWhereError(where)

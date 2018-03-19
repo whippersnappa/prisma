@@ -1,6 +1,6 @@
 package com.prisma.api
 
-import com.prisma.api.connector.mysql.database.DatabaseMutationBuilder
+import com.prisma.api.connector.mysql.database.SlickDatabaseMutationBuilder
 import com.prisma.shared.models.TypeIdentifier.TypeIdentifier
 import com.prisma.shared.models.{Model, TypeIdentifier}
 import slick.dbio.DBIOAction
@@ -49,7 +49,7 @@ object DatabaseApiTestDatabaseMutationBuilder {
 
   def createScalarListTable(projectId: String, modelName: String, fieldName: String, typeIdentifier: TypeIdentifier) = {
     val idCharset     = charsetTypeForScalarTypeIdentifier(isList = false, TypeIdentifier.GraphQLID)
-    val sqlType       = DatabaseMutationBuilder.sqlTypeForScalarTypeIdentifier(false, typeIdentifier)
+    val sqlType       = SlickDatabaseMutationBuilder.sqlTypeForScalarTypeIdentifier(false, typeIdentifier)
     val charsetString = charsetTypeForScalarTypeIdentifier(false, typeIdentifier)
     val indexSize = sqlType match {
       case "text" | "mediumtext" => "(191)"
@@ -82,7 +82,7 @@ object DatabaseApiTestDatabaseMutationBuilder {
                    isList: Boolean,
                    typeIdentifier: TypeIdentifier.TypeIdentifier) = {
 
-    val sqlType       = DatabaseMutationBuilder.sqlTypeForScalarTypeIdentifier(isList, typeIdentifier)
+    val sqlType       = SlickDatabaseMutationBuilder.sqlTypeForScalarTypeIdentifier(isList, typeIdentifier)
     val charsetString = charsetTypeForScalarTypeIdentifier(isList, typeIdentifier)
     val nullString    = if (isRequired) "NOT NULL" else "NULL"
     val uniqueString =
@@ -104,7 +104,7 @@ object DatabaseApiTestDatabaseMutationBuilder {
       DBIO.seq(createTable(projectId, model.name)),
       DBIO.seq(
         model.scalarNonListFields
-          .filter(f => !DatabaseMutationBuilder.implicitlyCreatedColumns.contains(f.name))
+          .filter(f => !SlickDatabaseMutationBuilder.implicitlyCreatedColumns.contains(f.name))
           .map { (field) =>
             createColumn(
               projectId = projectId,

@@ -172,7 +172,7 @@ lazy val apiConnectorMySql = connectorProject("api-connector-mysql")
   .dependsOn(scalaUtils % "compile")
   .dependsOn(metrics % "compile")
   .settings(
-    libraryDependencies ++= slick ++ Seq(mariaDbClient, sprayJson)
+    libraryDependencies ++= slick ++ Seq(mariaDbClient, sprayJson, scalikeJDBC)
   )
 
 // ####################

@@ -15,7 +15,7 @@ import slick.sql.{SqlAction, SqlStreamingAction}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object DatabaseMutationBuilder {
+object SlickDatabaseMutationBuilder {
   val implicitlyCreatedColumns = List("id", "createdAt", "updatedAt")
 
   // region CREATE

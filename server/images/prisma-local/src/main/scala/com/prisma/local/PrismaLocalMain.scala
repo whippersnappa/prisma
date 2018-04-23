@@ -9,21 +9,23 @@ import com.prisma.subscriptions.SimpleSubscriptionsServer
 import com.prisma.websocket.WebsocketServer
 import com.prisma.workers.WorkerServer
 
-object PrismaLocalMain extends App {
-  implicit val system       = ActorSystem("single-server")
-  implicit val materializer = ActorMaterializer()
-  val port                  = sys.env.getOrElse("PORT", "9000").toInt
-  implicit val dependencies = PrismaLocalDependencies()
-  dependencies.initialize()(system.dispatcher)
+object PrismaLocalMain {
+  def main(args: Array[String]): Unit = {
+    implicit val system       = ActorSystem("single-server")
+    implicit val materializer = ActorMaterializer()
+    val port                  = sys.env.getOrElse("PORT", "9000").toInt
+    implicit val dependencies = PrismaLocalDependencies()
+    dependencies.initialize()(system.dispatcher)
 
-  Version.check()
+    Version.check()
 
-  ServerExecutor(
-    port = port,
-    ClusterServer("cluster"),
-    WebsocketServer(dependencies),
-    ApiServer(dependencies.apiSchemaBuilder),
-    SimpleSubscriptionsServer(),
-    WorkerServer(dependencies)
-  ).startBlocking()
+    ServerExecutor(
+      port = port,
+      ClusterServer("cluster"),
+      WebsocketServer(dependencies),
+      ApiServer(dependencies.apiSchemaBuilder),
+      SimpleSubscriptionsServer(),
+      WorkerServer(dependencies)
+    ).startBlocking()
+  }
 }

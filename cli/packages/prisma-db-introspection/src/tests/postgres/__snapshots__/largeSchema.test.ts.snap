@@ -11,12 +11,13 @@ Object {
   film_actors: [Film_actor!]!
 }
 
-type Actor_info @pgTable(name: \\"actor_info\\") {
-  actor_id: Int
-  film_info: String
-  first_name: String
-  last_name: String
-}
+// Types without primary key not yet supported
+// type Actor_info @pgTable(name: \\"actor_info\\") {
+//   actor_id: Int
+//   film_info: String
+//   first_name: String
+//   last_name: String
+// }
 
 type Address @pgTable(name: \\"address\\") {
   id: Int! @unique @pgColumn(name: \\"address_id\\")
@@ -69,17 +70,18 @@ type Customer @pgTable(name: \\"customer\\") {
   rentals: [Rental!]!
 }
 
-type Customer_list @pgTable(name: \\"customer_list\\") {
-  address: String
-  city: String
-  country: String
-  id: Int
-  name: String
-  notes: String
-  phone: String
-  sid: Int
-  zip code: String
-}
+// Types without primary key not yet supported
+// type Customer_list @pgTable(name: \\"customer_list\\") {
+//   address: String
+//   city: String
+//   country: String
+//   id: Int
+//   name: String
+//   notes: String
+//   phone: String
+//   sid: Int
+//   zip code: String
+// }
 
 type Film @pgTable(name: \\"film\\") {
   id: Int! @unique @pgColumn(name: \\"film_id\\")
@@ -100,28 +102,31 @@ type Film @pgTable(name: \\"film\\") {
   inventorys: [Inventory!]!
 }
 
-type Film_actor @pgTable(name: \\"film_actor\\") {
-  actor: Actor! @pgRelation(column: \\"actor_id\\")
-  film: Film! @pgRelation(column: \\"film_id\\")
-  last_update: DateTime!
-}
+// Types without primary key not yet supported
+// type Film_actor @pgTable(name: \\"film_actor\\") {
+//   actor: Actor! @pgRelation(column: \\"actor_id\\")
+//   film: Film! @pgRelation(column: \\"film_id\\")
+//   last_update: DateTime!
+// }
 
-type Film_category @pgTable(name: \\"film_category\\") {
-  category: Category! @pgRelation(column: \\"category_id\\")
-  film: Film! @pgRelation(column: \\"film_id\\")
-  last_update: DateTime!
-}
+// Types without primary key not yet supported
+// type Film_category @pgTable(name: \\"film_category\\") {
+//   category: Category! @pgRelation(column: \\"category_id\\")
+//   film: Film! @pgRelation(column: \\"film_id\\")
+//   last_update: DateTime!
+// }
 
-type Film_list @pgTable(name: \\"film_list\\") {
-  actors: String
-  category: String
-  description: String
-  fid: Int
-  length: Int
-  price: Float
-  # rating: null # Type 'USER-DEFINED' is not yet supported.
-  title: String
-}
+// Types without primary key not yet supported
+// type Film_list @pgTable(name: \\"film_list\\") {
+//   actors: String
+//   category: String
+//   description: String
+//   fid: Int
+//   length: Int
+//   price: Float
+//   # rating: null # Type 'USER-DEFINED' is not yet supported.
+//   title: String
+// }
 
 type Inventory @pgTable(name: \\"inventory\\") {
   id: Int! @unique @pgColumn(name: \\"inventory_id\\")
@@ -138,16 +143,17 @@ type Language @pgTable(name: \\"language\\") {
   films: [Film!]!
 }
 
-type Nicer_but_slower_film_list @pgTable(name: \\"nicer_but_slower_film_list\\") {
-  actors: String
-  category: String
-  description: String
-  fid: Int
-  length: Int
-  price: Float
-  # rating: null # Type 'USER-DEFINED' is not yet supported.
-  title: String
-}
+// Types without primary key not yet supported
+// type Nicer_but_slower_film_list @pgTable(name: \\"nicer_but_slower_film_list\\") {
+//   actors: String
+//   category: String
+//   description: String
+//   fid: Int
+//   length: Int
+//   price: Float
+//   # rating: null # Type 'USER-DEFINED' is not yet supported.
+//   title: String
+// }
 
 type Payment @pgTable(name: \\"payment\\") {
   id: Int! @unique @pgColumn(name: \\"payment_id\\")
@@ -169,16 +175,18 @@ type Rental @pgTable(name: \\"rental\\") {
   payments: [Payment!]!
 }
 
-type Sales_by_film_category @pgTable(name: \\"sales_by_film_category\\") {
-  category: String
-  total_sales: Float
-}
+// Types without primary key not yet supported
+// type Sales_by_film_category @pgTable(name: \\"sales_by_film_category\\") {
+//   category: String
+//   total_sales: Float
+// }
 
-type Sales_by_store @pgTable(name: \\"sales_by_store\\") {
-  manager: String
-  store: String
-  total_sales: Float
-}
+// Types without primary key not yet supported
+// type Sales_by_store @pgTable(name: \\"sales_by_store\\") {
+//   manager: String
+//   store: String
+//   total_sales: Float
+// }
 
 type Staff @pgTable(name: \\"staff\\") {
   id: Int! @unique @pgColumn(name: \\"staff_id\\")
@@ -197,16 +205,17 @@ type Staff @pgTable(name: \\"staff\\") {
   stores: [Store!]!
 }
 
-type Staff_list @pgTable(name: \\"staff_list\\") {
-  address: String
-  city: String
-  country: String
-  id: Int
-  name: String
-  phone: String
-  sid: Int
-  zip code: String
-}
+// Types without primary key not yet supported
+// type Staff_list @pgTable(name: \\"staff_list\\") {
+//   address: String
+//   city: String
+//   country: String
+//   id: Int
+//   name: String
+//   phone: String
+//   sid: Int
+//   zip code: String
+// }
 
 type Store @pgTable(name: \\"store\\") {
   id: Int! @unique @pgColumn(name: \\"store_id\\")

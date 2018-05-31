@@ -8,7 +8,7 @@ export interface RelationField {
 
 export class SdlPrinter {
   print(tables: Table[]): string {
-    const candidates = tables.filter(x => !x.isJunctionTable)
+    const candidates = tables.filter(x => !x.isJoinTable)
     const sdl = _.map(candidates, table =>
       this.printType(table, tables.filter(x => x != table))
     )
@@ -18,42 +18,49 @@ export class SdlPrinter {
 
   printType(table: Table, otherTables: Table[]) {
     const nativeFields = table.columns
-    const filterFunction = c => (c.relation || false) && c.relation.table == table.name
-    const relationFields = otherTables
-      .filter(t => t.columns.some(filterFunction))
-      .map(t =>
-        t.columns
-          .filter(filterFunction)
-          .map(c => ({ remoteColumn: c, remoteTable: t }))
-      )
-      .reduce((acc, next) => acc.concat(next), [])
+    // const filterFunction = c => c.relation !== null && c.relation.table == table.name
+    // const relationFields = otherTables
+    //   .filter(t => t.columns.some(filterFunction))
+    //   .map(t =>
+    //     t.columns
+    //       .filter(filterFunction)
+    //       .map(c => ({ remoteColumn: c, remoteTable: t }))
+    //   )
+    //   .reduce((acc, next) => acc.concat(next), [])
 
-    return `type ${this.capitalizeFirstLetter(table.name)} @pgTable(name: "${table.name}") {
-  ${(_.map(nativeFields, nativeField => this.printField(nativeField)).concat(relationFields.map(field => this.printBackRelationField(field)))).join('\n  ')}
+    const raw = `type ${this.capitalizeFirstLetter(table.name)} @pgTable(name: "${table.name}") {
+  ${(_.map(nativeFields, nativeField => this.printField(nativeField))/*.concat(relationFields.map(field => this.printBackRelationField(field)))*/).join('\n  ')}
 }
 `
-  }
 
-  printBackRelationField(field: RelationField) {
-    if (field.remoteTable.isJunctionTable) {
-      const otherRemoteTableField = field.remoteTable.columns.filter(
-        x => x.name !== field.remoteColumn.name
-      )[0]
-      const relatedTable = (otherRemoteTableField.relation as Relation).table
-
-      return `${this.lowerCaseFirstLetter(
-        relatedTable
-      )}s: [${this.capitalizeFirstLetter(
-        relatedTable
-      )}!]! @pgRelationTable(table: "${field.remoteTable.name}" name: "${
-        field.remoteTable.name
-        }")`
+    if (table.hasPrimaryKey) {
+      return raw
     } else {
-      return `${field.remoteTable.name}s: [${this.capitalizeFirstLetter(
-        field.remoteTable.name
-      )}!]!`
+      const commented = raw.split(/\r?\n/).map(line => { return line.length > 0 ? `// ${line}` : "" }).join("\n")
+      return `// Types without primary key not yet supported\n${commented}`
     }
   }
+
+  // printBackRelationField(field: RelationField) {
+  //   if (field.remoteTable.isJunctionTable) {
+  //     const otherRemoteTableField = field.remoteTable.columns.filter(
+  //       x => x.name !== field.remoteColumn.name
+  //     )[0]
+  //     const relatedTable = (otherRemoteTableField.relation as Relation).table
+
+  //     return `${this.lowerCaseFirstLetter(
+  //       relatedTable
+  //     )}s: [${this.capitalizeFirstLetter(
+  //       relatedTable
+  //     )}!]! @pgRelationTable(table: "${field.remoteTable.name}" name: "${
+  //       field.remoteTable.name
+  //       }")`
+  //   } else {
+  //     return `${field.remoteTable.name}s: [${this.capitalizeFirstLetter(
+  //       field.remoteTable.name
+  //     )}!]!`
+  //   }
+  // }
 
   printField(column: Column) {
     const field = `${this.printFieldName(column)}: ${this.printFieldType(
@@ -71,7 +78,7 @@ export class SdlPrinter {
   }
 
   printFieldName(column: Column) {
-    if (column.relation) {
+    if (column.relation !== null) {
       return this.removeIdSuffix(column.name)
     } else if (column.isPrimaryKey) {
       return "id"
@@ -81,15 +88,15 @@ export class SdlPrinter {
   }
 
   printFieldType(column: Column) {
-    if (column.relation) {
-      return this.capitalizeFirstLetter(column.relation.table)
+    if (column.relation !== null) {
+      return this.capitalizeFirstLetter(column.relation.target_table)
     } else {
       return column.typeIdentifier
     }
   }
 
   printRelationDirective(column: Column) {
-    if (column.relation) {
+    if (column.relation !== null) {
       return ` @pgRelation(column: "${column.name}")`
     } else {
       return ''

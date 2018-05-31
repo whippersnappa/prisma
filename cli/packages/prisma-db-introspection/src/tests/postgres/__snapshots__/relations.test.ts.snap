@@ -63,11 +63,12 @@ Object {
   bill_products: [Bill_product!]!
 }
 
-type Bill_product @pgTable(name: \\"bill_product\\") {
-  bill: Bill @pgRelation(column: \\"bill_id\\")
-  product: Product @pgRelation(column: \\"product_id\\")
-  some_other_column: String!
-}
+// Types without primary key not yet supported
+// type Bill_product @pgTable(name: \\"bill_product\\") {
+//   bill: Bill @pgRelation(column: \\"bill_id\\")
+//   product: Product @pgRelation(column: \\"product_id\\")
+//   some_other_column: String!
+// }
 
 type Product @pgTable(name: \\"product\\") {
   id: Int! @unique

@@ -10,25 +10,30 @@ export type TypeIdentifier =
   | 'Json' // | 'Enum' | 'Relation'
 
 export interface Relation {
-  table: string
+  source_table: string
+  target_table: string
+  source_column: string
+  target_column: string
 }
 
 export interface Column {
   name: string
   isPrimaryKey: boolean
+  relation: Relation | null
   isUnique: boolean
   defaultValue: any
   type: string
   typeIdentifier: TypeIdentifier
   comment: string | null
-  relation: Relation | null
-  nullable: Boolean
+  nullable: boolean
 }
 
 export interface Table {
   name: string
-  isJunctionTable: boolean
-  columns: Column[]
+  isJoinTable: boolean,
+  hasPrimaryKey: boolean,
+  columns: Column[],
+  relations: Relation[]
 }
 
 export interface PrimaryKey {
@@ -36,4 +41,11 @@ export interface PrimaryKey {
   fields: string[]
 }
 
+export interface ForeignKey {
+  tableName: string
+  field: string
+}
+
 export type PostgresConnectionDetails = string | ClientConfig
+
+

@@ -9,18 +9,45 @@ export type TypeIdentifier =
   | 'ID'
   | 'Json' // | 'Enum' | 'Relation'
 
-export interface Relation {
-  source_table: string
-  target_table: string
-  source_column: string
-  target_column: string
+export interface Connector {
+  listSchemas(): Promise<string[]>
+  listTables(schemaName: string): Promise<Table[]>
+}
+
+export class Table {
+  name: string
+  columns: Column[]
+  relations: TableRelation[]
+
+  constructor(name: string, columns: Column[], relations: TableRelation[]) {
+    this.name = name
+    this.columns = columns
+    this.relations = relations
+  }
+
+  hasPrimaryKey(): boolean {
+    return this.columns.some(x => { return x.isPrimaryKey })
+  }
+
+  isJoinTable(): boolean {
+    // Table is a join table, if:
+    // - It has 2 relations that are not self-relations
+    // - It has no primary key (Prisma doesn't handle join tables with keys)
+    // - It has only other fields that are nullable or have default values (Prisma doesn't set other fields on join tables)
+    return this.relations.filter(rel => rel.target_table !== this.name).length === 2 &&
+      !this.columns.some(c => !c.isPrimaryKey) &&
+      !this.columns.filter(c => !this.isRelationColumn(c) !== null).some(c => !c.nullable && (c.defaultValue === null))
+  }
+
+  isRelationColumn(column: Column): boolean {
+    return this.relations.some(rel => rel.source_column == column.name)
+  }
 }
 
 export interface Column {
   name: string
-  isPrimaryKey: boolean
-  relation: Relation | null
   isUnique: boolean
+  isPrimaryKey: boolean
   defaultValue: any
   type: string
   typeIdentifier: TypeIdentifier
@@ -28,12 +55,11 @@ export interface Column {
   nullable: boolean
 }
 
-export interface Table {
-  name: string
-  isJoinTable: boolean,
-  hasPrimaryKey: boolean,
-  columns: Column[],
-  relations: Relation[]
+export interface TableRelation {
+  source_table: string
+  target_table: string
+  source_column: string
+  target_column: string
 }
 
 export interface PrimaryKey {
@@ -41,11 +67,9 @@ export interface PrimaryKey {
   fields: string[]
 }
 
-export interface ForeignKey {
-  tableName: string
-  field: string
-}
+// export interface ForeignKey {
+//   tableName: string
+//   field: string
+// }
 
 export type PostgresConnectionDetails = string | ClientConfig
-
-

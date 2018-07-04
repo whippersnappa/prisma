@@ -1,67 +1,83 @@
 import {
+  Connector,
   Table,
   Column,
   TypeIdentifier,
-  Relation,
+  TableRelation,
   PrimaryKey,
-  ForeignKey,
   PostgresConnectionDetails,
 } from '../types/common'
 import * as _ from 'lodash'
 import { Client } from 'pg'
 
-export class PostgresConnector {
+
+// Responsible for extracting a normalized representation of a PostgreSQL database (schema)
+export class PostgresConnector implements Connector {
   client
   connectionPromise
 
   constructor(connectionDetails: PostgresConnectionDetails) {
     this.client = new Client(connectionDetails)
     this.connectionPromise = this.client.connect()
+
     // auto disconnect. end waits for queries to succeed
     setTimeout(() => {
       this.client.end()
     }, 3000)
   }
 
-  async queryRelations(schemaName: string): Promise<Relation[]> {
-    const res = await this.client.query(
-      `SELECT source_table_name,
-              source_attr.attname AS source_column,
-              target_table_name,
-              target_attr.attname AS target_column
-      FROM pg_attribute target_attr, pg_attribute source_attr,
-      (
-        SELECT source_table_name, target_table_name, source_table_oid, target_table_oid, source_constraints[i] source_constraints, target_constraints[i] AS target_constraints
-        FROM
-        (
-          SELECT pgc.relname as source_table_name, pgct.relname as target_table_name, conrelid as source_table_oid, confrelid AS target_table_oid, conkey AS source_constraints, confkey AS target_constraints, generate_series(1, array_upper(conkey, 1)) AS i
-          FROM pg_constraint as pgcon 
-            LEFT JOIN pg_class as pgc ON pgcon.conrelid = pgc.oid -- source table
-            LEFT JOIN pg_namespace as pgn ON pgc.relnamespace = pgn.oid
-            LEFT JOIN pg_class as pgct ON pgcon.confrelid = pgct.oid -- target table
-            LEFT JOIN pg_namespace as pgnt ON pgct.relnamespace = pgnt.oid
-          WHERE contype = 'f'
-          AND pgn.nspname = $1::text 
-          AND pgnt.nspname = $1::text 
-        ) query1
-      ) query2
-      WHERE target_attr.attnum = target_constraints AND target_attr.attrelid = target_table_oid
-      AND   source_attr.attnum = source_constraints AND source_attr.attrelid = source_table_oid;`,
-      [schemaName.toLowerCase()]
-    )
+  async listSchemas(): Promise<string[]> {
+    await this.connectionPromise
+    return await this.querySchemas()
+  }
 
-    return res.rows.map(row => {
-      return {
-        source_table: row.source_table_name,
-        source_column: row.source_column,
-        target_table: row.target_table_name,
-        target_column: row.target_column
-      }
-    }) as Relation[]
+  async listTables(schemaName: string): Promise<Table[]> {
+    await this.connectionPromise
+
+    const [relations, tableColumns, primaryKeys] = await Promise.all([
+      this.queryRelations(schemaName),
+      this.queryTableColumns(schemaName),
+      this.queryPrimaryKeys(schemaName)
+    ])
+
+    const tables = _.map(tableColumns, (rawColumns, tableName) => {
+      const tablePrimaryKey = primaryKeys.find(pk => pk.tableName === tableName) || null
+      const tableRelations = relations.filter(rel => rel.source_table === tableName)
+      const columns = _.map(rawColumns, column => {
+        // Ignore composite keys for now
+        const isPk = Boolean(tablePrimaryKey
+          && tablePrimaryKey.fields.length == 1
+          && Boolean(tablePrimaryKey.fields.includes(column.column_name))
+        )
+
+        const { typeIdentifier, comment, error } = this.toTypeIdentifier(
+          column.data_type,
+          column.column_name,
+          isPk
+        )
+
+        const col = {
+          isUnique: column.is_unique || isPk,
+          isPrimaryKey: isPk,
+          defaultValue: this.parseDefaultValue(column.column_default),
+          name: column.column_name,
+          type: column.data_type,
+          typeIdentifier,
+          comment,
+          nullable: column.is_nullable === 'YES',
+        } as Column
+
+        return col
+      }).filter(x => x != null) as Column[]
+
+      return new Table(name, columns, relations)
+    })
+
+    return _.sortBy(tables, x => x.name)
   }
 
   // Queries all columns of all tables in given schema and returns them grouped by table_name
-  async queryTables(schemaName: string) {
+  async queryTableColumns(schemaName: string): Promise<{ [key: string]: any[] }> {
     const res = await this.client.query(
       `SELECT *, (SELECT EXISTS(
          SELECT *
@@ -104,123 +120,52 @@ export class PostgresConnector {
     })
   }
 
-  // async queryForeignKeys(schemaName: string): Promise<ForeignKey[]> {
-  //   return this.client.query(
-  //     `SELECT tc.table_name, kc.column_name, kc.constraint_name
-  //      FROM information_schema.table_constraints tc
-  //      JOIN information_schema.key_column_usage kc 
-  //        ON kc.table_name = tc.table_name 
-  //        AND kc.table_schema = tc.table_schema
-  //        AND kc.constraint_name = tc.constraint_name
-  //      WHERE tc.constraint_type = 'FOREIGN KEY'
-  //      AND tc.table_schema = $1::text
-  //      and kc.position_in_unique_constraint is not null
-  //      ORDER BY tc.table_name, kc.position_in_unique_constraint;`,
-  //     [schemaName.toLowerCase()]
-  //   ).then(keys => {
-  //     return keys.rows.map(key => {
-  //       return {
-  //         tableName: key.table_name,
-  //         field: key.column_name
-  //       } as ForeignKey
-  //     })
-  //   })
-  // }
+  async queryRelations(schemaName: string): Promise<TableRelation[]> {
+    const res = await this.client.query(
+      `SELECT source_table_name,
+              source_attr.attname AS source_column,
+              target_table_name,
+              target_attr.attname AS target_column
+      FROM pg_attribute target_attr, pg_attribute source_attr,
+      (
+        SELECT source_table_name, target_table_name, source_table_oid, target_table_oid, source_constraints[i] source_constraints, target_constraints[i] AS target_constraints
+        FROM
+        (
+          SELECT pgc.relname as source_table_name, pgct.relname as target_table_name, conrelid as source_table_oid, confrelid AS target_table_oid, conkey AS source_constraints, confkey AS target_constraints, generate_series(1, array_upper(conkey, 1)) AS i
+          FROM pg_constraint as pgcon 
+            LEFT JOIN pg_class as pgc ON pgcon.conrelid = pgc.oid -- source table
+            LEFT JOIN pg_namespace as pgn ON pgc.relnamespace = pgn.oid
+            LEFT JOIN pg_class as pgct ON pgcon.confrelid = pgct.oid -- target table
+            LEFT JOIN pg_namespace as pgnt ON pgct.relnamespace = pgnt.oid
+          WHERE contype = 'f'
+          AND pgn.nspname = $1::text 
+          AND pgnt.nspname = $1::text 
+        ) query1
+      ) query2
+      WHERE target_attr.attnum = target_constraints AND target_attr.attrelid = target_table_oid
+      AND   source_attr.attnum = source_constraints AND source_attr.attrelid = source_table_oid;`,
+      [schemaName.toLowerCase()]
+    )
+
+    return res.rows.map(row => {
+      return {
+        source_table: row.source_table_name,
+        source_column: row.source_column,
+        target_table: row.target_table_name,
+        target_column: row.target_column
+      }
+    }) as TableRelation[]
+  }
 
   async querySchemas() {
     const res = await this.client.query(
-      `select schema_name from information_schema.schemata WHERE schema_name NOT LIKE 'pg_%' AND schema_name NOT LIKE 'information_schema';`
+      `SELECT schema_name 
+       FROM information_schema.schemata 
+       WHERE schema_name NOT LIKE 'pg_%' 
+       AND schema_name NOT LIKE 'information_schema';`
     )
 
     return res.rows.map(x => x.schema_name)
-  }
-
-  // extractRelation(table, column, relations) {
-  //   const candidate = relations.find(
-  //     relation =>
-  //       relation.table_name === table && relation.column_name === column
-  //   )
-
-  //   if (candidate) {
-  //     return {
-  //       table: candidate.foreign_table_name,
-  //     }
-  //   } else {
-  //     return null
-  //   }
-  // }
-
-  async listSchemas(): Promise<string[]> {
-    await this.connectionPromise
-    return await this.querySchemas()
-  }
-
-  async listTables(schemaName: string): Promise<Table[]> {
-    await this.connectionPromise
-
-    const [relations, tableRows, primaryKeys] = await Promise.all([
-      this.queryRelations(schemaName),
-      this.queryTables(schemaName),
-      this.queryPrimaryKeys(schemaName)
-    ])
-
-    const tables = _.map(tableRows, (originalColumns, tableName) => {
-      const tablePrimaryKey = primaryKeys.find(pk => pk.tableName === tableName) || null
-      const tableRelations = relations.filter(rel => rel.source_table === tableName)
-      const columns = _.map(originalColumns, column => {
-        // Ignore composite keys for now
-        const isPk = Boolean(tablePrimaryKey
-          && tablePrimaryKey.fields.length == 1
-          && Boolean(tablePrimaryKey.fields.includes(column.column_name))
-        )
-
-        const { typeIdentifier, comment, error } = this.toTypeIdentifier(
-          column.data_type,
-          column.column_name,
-          isPk
-        )
-
-        const rel = tableRelations.find(rel => rel.source_column === column.column_name) || null
-
-        const col = {
-          isUnique: column.is_unique || isPk,
-          isPrimaryKey: isPk,
-          relation: rel,
-          defaultValue: this.parseDefaultValue(column.column_default),
-          name: column.column_name,
-          type: column.data_type,
-          typeIdentifier,
-          comment,
-          nullable: column.is_nullable === 'YES',
-        } as Column
-
-        return col
-      }).filter(x => x != null) as Column[]
-
-      const sortedColumns = _.sortBy(columns.filter(c => !c.isPrimaryKey), x => x.name)
-      const primaryKeyCol = columns.find(c => c.isPrimaryKey)
-      if (primaryKeyCol) {
-        sortedColumns.unshift(primaryKeyCol)
-      }
-
-      // Table is a join table if:
-      // - It has 2 relations that are not self-relations
-      // - It has no primary key (Prisma doesn't handle join tables with keys)
-      // - It has only other fields that are nullable or have default values (Prisma doesn't set other fields on join tables)
-      const isJoinTable = tableRelations.filter(rel => rel.target_table !== tableName).length === 2 &&
-        !sortedColumns.some(c => !c.isPrimaryKey) &&
-        !sortedColumns.filter(c => !c.relation !== null).some(c => !c.nullable && (c.defaultValue === null))
-
-      return {
-        name: tableName,
-        columns: sortedColumns,
-        relations: tableRelations,
-        isJoinTable: isJoinTable,
-        hasPrimaryKey: sortedColumns.some(x => { return x.isPrimaryKey })
-      }
-    })
-
-    return _.sortBy(tables, x => x.name)
   }
 
   parseDefaultValue(string) {

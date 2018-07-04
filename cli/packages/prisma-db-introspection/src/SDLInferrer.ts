@@ -1,19 +1,26 @@
-import { Table, Column, Relation } from './types/common'
+import { Table, Column, TableRelation } from './types/common'
+import { SDL, GQLType, GQLField } from './types/graphql'
 import * as _ from 'lodash'
 
-export interface RelationField {
-  remoteColumn: Column
-  remoteTable: Table
-}
+export class SDLInferrer {
+  infer(dbTables: Table[]): SDL {
+    const typeCandidates = dbTables.filter(t => !t.isJoinTable())
+    const joinTables = dbTables.filter(t => t.isJoinTable())
 
-export class SdlPrinter {
-  print(tables: Table[]): string {
-    const candidates = tables.filter(x => !x.isJoinTable)
-    const sdl = _.map(candidates, table =>
-      this.printType(table, tables.filter(x => x != table))
-    )
+    // Assemble basic types
+    const types = typeCandidates.map(tc => {
+      // tc.columns.some(f => f.isPrimaryKey)
 
-    return sdl.join('\r\n')
+      const name = this.capitalizeFirstLetter(tc.name)
+      const directives = [`@pgTable("${tc.name}")`]
+      const fields: GQLField[] = []
+      
+      // const relations = tc.relations
+
+      return new GQLType(name, fields, directives, false)
+    })
+
+    return new SDL(types)
   }
 
   printType(table: Table, otherTables: Table[]) {
@@ -33,12 +40,12 @@ export class SdlPrinter {
 }
 `
 
-    if (table.hasPrimaryKey) {
-      return raw
-    } else {
-      const commented = raw.split(/\r?\n/).map(line => { return line.length > 0 ? `// ${line}` : "" }).join("\n")
-      return `// Types without primary key not yet supported\n${commented}`
-    }
+    // if (table.hasPrimaryKey) {
+    //   return raw
+    // } else {
+    const commented = raw.split(/\r?\n/).map(line => { return line.length > 0 ? `// ${line}` : "" }).join("\n")
+    return `// Types without primary key not yet supported\n${commented}`
+    // }
   }
 
   // printBackRelationField(field: RelationField) {
@@ -78,29 +85,29 @@ export class SdlPrinter {
   }
 
   printFieldName(column: Column) {
-    if (column.relation !== null) {
-      return this.removeIdSuffix(column.name)
-    } else if (column.isPrimaryKey) {
-      return "id"
-    } else {
-      return column.name
-    }
+    // if (column.relation !== null) {
+    //   return this.removeIdSuffix(column.name)
+    // } else if (column.isPrimaryKey) {
+    // return "id"
+    // } else {
+    return column.name
+    // }
   }
 
   printFieldType(column: Column) {
-    if (column.relation !== null) {
-      return this.capitalizeFirstLetter(column.relation.target_table)
-    } else {
-      return column.typeIdentifier
-    }
+    // if (column.relation !== null) {
+    // return this.capitalizeFirstLetter(column.relation.target_table)
+    // } else {
+    return column.typeIdentifier
+    // }
   }
 
   printRelationDirective(column: Column) {
-    if (column.relation !== null) {
-      return ` @pgRelation(column: "${column.name}")`
-    } else {
-      return ''
-    }
+    // if (column.relation !== null) {
+    // return ` @pgRelation(column: "${column.name}")`
+    // } else {
+    return ''
+    // }
   }
 
   printFieldOptional(column: Column) {

@@ -25,7 +25,7 @@ You also should install the [Cloud SDK](https://cloud.google.com/sdk/).
 
 Sign up to [zeit.co](https://zeit.co).
 
-Install the [now-cli)](https://github.com/zeit/now-cli)
+Install the [now-cli](https://github.com/zeit/now-cli)
 
 ## 1. MySQL
 
